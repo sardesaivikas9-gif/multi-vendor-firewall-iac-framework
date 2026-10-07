@@ -1,0 +1,5 @@
+# Ignore the entire background runner installation directory
+actions-runner/
+
+# Strictly ignore your plain-text master passphrase key for security compliance
+.vault_pass

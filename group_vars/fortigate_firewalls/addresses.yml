@@ -1,0 +1,5 @@
+---
+forti_addresses:
+  - { name: "Forti_App_Server", value: "10.50.10.11", comment: "Prod App Server", action: "add" }
+  - { name: "Forti_DB_Server", value: "10.60.20.55", comment: "Prod DB Server", action: "add" }
+  - { name: "test_server", value: "20.20.20.10", comment: "modular automation", action: "add" }

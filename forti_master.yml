@@ -1,0 +1,68 @@
+---
+- name: Production Unified FortiGate 7.2.0 Orchestration (REST API Engine)
+  # 1. Target your specific inventory group from production_inventory.ini
+  hosts: fortigate_firewalls   
+  connection: local
+  gather_facts: false
+
+  # 2. Force an explicit load of your freshly split, modular schemas
+  vars_files:
+    - group_vars/fortigate_firewalls/zones.yml
+    - group_vars/fortigate_firewalls/addresses.yml
+    - group_vars/fortigate_firewalls/policies.yml
+    - group_vars/fortigate_firewalls/vault.yml
+
+  vars:
+    # 3. Dynamically read the management IP from your active inventory target
+    forti_host: "{{ ansible_host }}" 
+
+  tasks:
+    - name: 1. Provision Security Zones via FortiOS 7.2 REST API
+      ansible.builtin.uri:
+        url: "http://{{ forti_host }}/api/v2/cmdb/system/zone/"
+        method: POST
+        body_format: json
+        body:
+          name: "{{ item.name }}"
+        headers:
+          Authorization: "Bearer {{ vault_forti_token }}"
+        status_code: [200, 500] # Bypasses errors if the zone already exists
+      loop: "{{ forti_zones }}"
+      when: item.action == 'add'
+
+    - name: 2. Provision Address Objects via FortiOS 7.2 REST API
+      ansible.builtin.uri:
+        url: "http://{{ forti_host }}/api/v2/cmdb/firewall/address/"
+        method: POST
+        body_format: json
+        body:
+          name: "{{ item.name }}"
+          type: "ipmask"
+          subnet: "{{ item.value }} 255.255.255.255"
+          comment: "{{ item.comment | default('') }}"
+        headers:
+          Authorization: "Bearer {{ vault_forti_token }}"
+        status_code: [200, 500]
+      loop: "{{ forti_addresses }}"
+      when: item.action == 'add'
+
+    - name: 3. Provision Security Policies via FortiOS 7.2 REST API
+      ansible.builtin.uri:
+        url: "http://{{ forti_host }}/api/v2/cmdb/firewall/policy/"
+        method: POST
+        body_format: json
+        body:
+          policyid: 101
+          name: "{{ item.name }}"
+          srcintf: [{ name: "{{ item.src_zone }}" }]
+          dstintf: [{ name: "{{ item.dest_zone }}" }]
+          srcaddr: [{ name: "{{ item.src_ip }}" }]
+          dstaddr: [{ name: "{{ item.dest_ip }}" }]
+          service: [{ name: "{{ item.app }}" }]
+          action: "{{ item.srv_action }}"
+          schedule: "always"
+        headers:
+          Authorization: "Bearer {{ vault_forti_token }}"
+        status_code: [200, 500]
+      loop: "{{ forti_security_policies }}"
+      when: item.action == 'add'

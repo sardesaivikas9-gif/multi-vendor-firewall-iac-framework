@@ -1,0 +1,67 @@
+---
+# Centralised State Management for Production Palo Alto Architecture
+
+firewall_zones:
+  - { name: "Prod_Inside_Zone", mode: "layer3", action: "add" }
+  - { name: "Prod_DMZ_Zone", mode: "layer3", action: "add" }
+
+firewall_addresses:
+  - { name: "App_Server_01", value: "10.50.10.11", description: "Production App Server", action: "add" }
+  - { name: "DB_Server_01", value: "10.60.20.55", description: "Production DB Server", action: "add" }
+
+firewall_address_groups:
+  # Groups individual address objects together dynamically
+  - { name: "Prod_Core_Servers_Group", members: ["App_Server_01", "DB_Server_01"], action: "add" }
+
+firewall_nat_rules:
+  # Provisions outbound internet connectivity translation
+  - name: "Outbound_Web_NAT"
+    src_zone: "Prod_Inside_Zone"
+    dest_zone: "Prod_DMZ_Zone"
+    snat_type: "dynamic-ip-and-port"
+    snat_interface: "ethernet1/1"
+    action: "add"
+
+# firewall_security_policies:
+#   - name: "Allow_Group_Traffic_To_DMZ"
+#     src_zone: "Prod_Inside_Zone"
+#     dest_zone: "Prod_DMZ_Zone"
+#     src_ip: "Prod_Core_Servers_Group"  # References the Address Group instead of a single IP
+#     dest_ip: "any"
+#     app: "any"
+#     srv_action: "allow"
+#     action: "add"
+
+# Update your security policies section inside palo_firewall_vars.yml
+
+firewall_security_policies:
+  - name: "Allow_Group_Traffic_To_DMZ"
+    src_zone: "Prod_Inside_Zone"
+    dest_zone: "Prod_DMZ_Zone"
+    src_ip: "Prod_Core_Servers_Group"
+    dest_ip: "any"
+    app: "any"
+    srv_action: "deny"                # <--- CHANGED from allow to deny
+    log_start: "no"
+    action: "add"
+
+  - name: "Internet_Access"          # <--- NEW RULE ADDED BELOW
+    src_zone: "Inside"     # Using your existing inside zone
+    dest_zone: "Outside"        # Route to your active DMZ zone to ensure reference matches
+    src_ip: "10.10.10.0/24"          # Your network subnet block
+    dest_ip: "any"
+    app: "ping"                      # Inspection application limited to ping
+    srv_action: "allow"              # Security action set to allow traffic
+    log_start: "yes"                 # Enable log at session start
+    action: "add"
+
+# System flag to execute the commit live
+trigger_commit: "yes"
+
+vault_fw_password: !vault |
+          $ANSIBLE_VAULT;1.1;AES256
+          62626163343230326166303932623032396333626531323538306433336464666162306133333131
+          3535363865313233663430386438626262343231326463660a336266313762623766613738656533
+          38333461613330633632666566656262316634386131306231636536653731643537376664666132
+          6262616666623265360a363539336161623961343633613532643263626539633736383234336630
+          6166

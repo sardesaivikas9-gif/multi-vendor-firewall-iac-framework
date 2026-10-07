@@ -1,0 +1,3 @@
+action,rule_name,from_zone,to_zone,source_ip,dest_ip,application,service,rule_action,commit_changes
+add,Allow_Internal_Web_2,Inside,Outside,10.10.10.2/24,192.168.1.151,ping,any,deny,yes
+add,Allow_Internal_Web_3,Outside,Inside,any,10.10.10.1/24,ping,any,deny,yes

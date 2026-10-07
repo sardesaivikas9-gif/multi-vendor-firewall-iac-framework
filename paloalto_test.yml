@@ -1,0 +1,34 @@
+---
+- name: Data-Driven Palo Alto Provisioning
+  hosts: localhost
+  connec  tion: local
+  gather_facts: false
+
+  vars:
+    # Your GNS3 practice firewall connection details
+    pan_provider:
+      ip_address: "192.168.1.180"
+      username: "admin"             # <-- Change if your admin user is different
+      password: "admin"      # <-- Change to your actual firewall password
+
+  tasks:
+    - name: 1. Read data from your copied CSV file
+      community.general.read_csv:
+        path: palo_addresses.csv     # <-- CHANGE this to your exact CSV file name
+      register: csv_data
+
+    - name: 2. Process Address Objects from CSV dynamically
+      paloaltonetworks.panos.panos_address_object:
+        provider: "{{ pan_provider }}"
+        name: "{{ item.object_name }}"   # Maps to your 'object_name' column
+        value: "{{ item.value }}"         # Maps to your 'value' column
+        description: "{{ item.description }}" # Maps to your 'description' column
+        # Maps your 'add' action to Ansible's standard 'present' state
+        state: "{{ 'present' if item.action == 'add' else 'absent' }}"
+      loop: "{{ csv_data.list }}"
+
+    - name: 3. Conditional Commit based on CSV column
+      paloaltonetworks.panos.panos_commit_firewall:
+        provider: "{{ pan_provider }}"
+      # Only triggers the commit if the first row has commit_changes set to 'yes'
+      when: csv_data.list[0].commit_changes == 'yes'

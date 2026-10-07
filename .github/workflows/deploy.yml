@@ -1,0 +1,22 @@
+---
+name: Production Firewall Deployment Pipeline
+
+# Trigger this pipeline automatically ONLY when code is pushed to the main branch
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  execute_cd_pipeline:
+    # Tells GitHub to send this job straight down to your local laptop runner agent!
+    runs-on: self-hosted
+
+    steps:
+      - name: 1. Checkout Repository Code
+        uses: actions/checkout@v4
+
+      - name: 2. Execute Automated Live REST API Deployment 🚀
+        run: |
+          # The local runner background agent triggers the real execution command natively!
+          ansible-playbook -i production_inventory.ini forti_master.yml --vault-password-file .vault_pass

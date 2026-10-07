@@ -1,0 +1,2 @@
+action,rule_name,description,nat_type,from_zone,to_zone,dest_interface,service,source_ip,dest_ip,snat_type,snat_interface,dnat_ip,dnat_port,commit_changes
+add,Inbound_Web_Server,Port forwarding to Prod Web,ipv4,Outside,Outside,ethernet1/1,service-http,any,203.0.113.50,,,,10.100.20.55,80,yes

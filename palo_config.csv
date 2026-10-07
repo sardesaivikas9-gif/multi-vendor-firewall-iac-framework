@@ -1,0 +1,4 @@
+variable,value
+FIREWALL_IP,192.168.1.180
+USERNAME,admin
+PASSWORD,admin

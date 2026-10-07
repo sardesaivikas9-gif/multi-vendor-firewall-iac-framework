@@ -1,0 +1,9 @@
+forti_security_policies:
+  - name: "Forti_Allow_Internal"
+    src_zone: "Forti_Inside_Zone"
+    dest_zone: "Forti_DMZ_Zone"
+    src_ip: "Forti_App_Server"
+    dest_ip: "Forti_DB_Server"
+    app: "ALL"
+    srv_action: "deny"
+    action: "add"

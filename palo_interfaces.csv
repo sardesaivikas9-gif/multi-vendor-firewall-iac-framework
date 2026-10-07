@@ -1,0 +1,3 @@
+action,interface_name,mode,ip_address,management_profile,virtual_router,security_zone,vlan,comment,commit_changes
+add,ethernet1/2,layer2,,,,,,Layer 2 Hardware Initialization,yes
+add,ethernet1/2,layer2,,,,,Inside_Layer2,,yes
