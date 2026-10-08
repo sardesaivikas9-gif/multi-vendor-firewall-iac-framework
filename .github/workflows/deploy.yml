@@ -22,6 +22,7 @@ jobs:
 
       - name: Execute Scalable Ansible Playbook
         env:
+          # Secure transmission of the multi-device host vault decryption keys
           VAULT_JSON_MAP: ${{ secrets.FIREWALL_VAULT_MAP }}
           ANSIBLE_CONFIG: ./ansible.cfg
         run: |
@@ -32,26 +33,24 @@ jobs:
           import os
           import sys
 
-          # 🚀 ENTERPRISE RESOLUTION: Ansible natively injects the active identity into the env when calling scripts
-          # It strips formatting parameters, yielding the exact key name (e.g., 'forti-fw-01')
-          requested_id = os.environ.get('ANSIBLE_VAULT_PASSWORD_FILE')
+          # 🚀 ENTERPRISE ARGUMENT PARSING
+          # When Ansible uses a script via vault_identity_list, it passes the Vault ID 
+          # as the first argument (sys.argv[1]). If no argument is provided, it's a default check.
+          requested_id = sys.argv[1] if len(sys.argv) > 1 else None
 
-          # Fallback check for command-line execution or diagnostics testing
-          if not requested_id and len(sys.argv) > 1:
-              requested_id = sys.argv[-1]
+          # If Ansible checks for a default/unlabeled password, exit cleanly with zero
+          if not requested_id or requested_id == 'default':
+              sys.exit(0)
 
+          # Load the secrets map securely from environment variables
           secrets_raw = os.environ.get('VAULT_JSON_MAP', '{}')
           secrets_map = json.loads(secrets_raw)
-
-          # If the system sweeps without an active host parameter identity, exit cleanly
-          if not requested_id or requested_id == 'default' or '.py' in requested_id:
-              sys.exit(0)
 
           # Fetch the exact password matching the host's Vault ID
           password = secrets_map.get(requested_id)
           
           if password:
-              # Stream the raw password directly into Ansible's execution buffer
+              # Stream the password without any trailing whitespace or newlines (\n)
               sys.stdout.write(password.strip())
               sys.stdout.flush()
               sys.exit(0)
