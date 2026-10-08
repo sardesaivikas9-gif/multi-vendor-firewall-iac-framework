@@ -22,59 +22,15 @@ jobs:
 
       - name: Execute Scalable Ansible Playbook
         env:
+          # Injects your multi-device credential JSON payload securely
           VAULT_JSON_MAP: ${{ secrets.FIREWALL_VAULT_MAP }}
           ANSIBLE_CONFIG: ./ansible.cfg
         run: |
-          # 1. Generate a temporary, dynamic Python lookup script on the runner
-          cat << 'EOF' > .vault_lookup.py
-          #!/usr/bin/env python3
-          import json
-          import os
-          import sys
-
-          # Capture the initial raw argument input string passed by the process
-          raw_arg = sys.argv[1] if len(sys.argv) > 1 else None
-          requested_id = None
-
-          if raw_arg:
-              # Strip down full file paths or identity symbols if passed by Ansible's sub-shell
-              base_name = os.path.basename(raw_arg)
-              if '@' in base_name:
-                  requested_id = base_name.split('@')[0]
-              else:
-                  requested_id = base_name.replace('.py', '')
-
-          # Pull the JSON configuration payload securely out of the environment variables
-          secrets_raw = os.environ.get('VAULT_JSON_MAP', '{}')
-          secrets_map = json.loads(secrets_raw)
-
-          # Fallback check: If the lookup is generic or blank, exit cleanly
-          if not requested_id or requested_id == 'default' or requested_id == 'vault_lookup':
-              sys.exit(0)
-
-          # Query the map using the cleaned, uniform key string
-          password = secrets_map.get(requested_id)
+          # 1. Parse the JSON map securely in-memory using python and map them to shell environment variables
+          # This keeps the secrets inside memory space and out of permanent files
+          export FORTI_VAULT_PASS=$(python3 -c "import json, os; print(json.loads(os.getenv('VAULT_JSON_MAP', '{}')).get('forti-fw-01', ''))")
+          export PALO_VAULT_PASS=$(python3 -c "import json, os; print(json.loads(os.getenv('VAULT_JSON_MAP', '{}')).get('palo-fw-01', ''))")
           
-          if password:
-              # Stream the password directly to stdout without any structural spacing or tracking tokens
-              sys.stdout.write(password.strip())
-              sys.stdout.flush()
-              sys.exit(0)
-          else:
-              sys.stderr.write(f"Error: No key map match found for resolved target ID: '{requested_id}'\n")
-              sys.exit(1)
-          EOF
-
-          # 2. Assign standard execution attributes
-          chmod 700 .vault_lookup.py
-
-          # 3. Run the playbook targeting your local inventory assets
+          # 2. Execute the playbook pointing directly to your production inventory
+          # ansible.cfg will call the environment variables dynamically via echo commands
           ansible-playbook -i production_inventory.ini site.yml
-
-          # 4. Immediate safe cleanup of the script file
-          rm -f .vault_lookup.py
-
-      # Fail-safe cleanup step to ensure the script is deleted even if the playbook execution fails
-      - name: Pipeline Housekeeping
-        if: always()
-        run: rm -f .vault_lookup.py
