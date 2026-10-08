@@ -25,20 +25,20 @@ jobs:
           VAULT_JSON_MAP: ${{ secrets.FIREWALL_VAULT_MAP }}
           ANSIBLE_CONFIG: ./ansible.cfg
         run: |
-          # 1. Parse the JSON map securely in-memory and export them to shell env variables
-          export FORTI_VAULT_PASS=$(python3 -c "import json, os; print(json.loads(os.getenv('VAULT_JSON_MAP', '{}')).get('forti-fw-01', ''))")
-          export PALO_VAULT_PASS=$(python3 -c "import json, os; print(json.loads(os.getenv('VAULT_JSON_MAP', '{}')).get('palo-fw-01', ''))")
+          # 1. Parse the JSON map securely inside the script configuration layer
+          # This completely avoids sub-shell environment variables inheritance limits
+          FORTI_PASS=$(python3 -c "import json, os; print(json.loads(os.getenv('VAULT_JSON_MAP', '{}')).get('forti-fw-01', ''))")
+          PALO_PASS=$(python3 -c "import json, os; print(json.loads(os.getenv('VAULT_JSON_MAP', '{}')).get('palo-fw-01', ''))")
           
-          # 2. Generate the temporary execution client file on disk
-          cat << 'EOF' > .vault_client.sh
+          # 2. Generate the temporary execution client file on disk with embedded keys
+          cat << EOF > .vault_client.sh
           #!/bin/bash
-          # Capture the identity string argument passed directly by Ansible
-          REQUESTED_ID=$1
+          REQUESTED_ID=\$1
           
-          if [ "$REQUESTED_ID" == "forti-fw-01" ]; then
-              printf "%s" "$FORTI_VAULT_PASS"
-          elif [ "$REQUESTED_ID" == "palo-fw-01" ]; then
-              printf "%s" "$PALO_VAULT_PASS"
+          if [ "\$REQUESTED_ID" == "forti-fw-01" ]; then
+              printf "%s" "$FORTI_PASS"
+          elif [ "\$REQUESTED_ID" == "palo-fw-01" ]; then
+              printf "%s" "$PALO_PASS"
           fi
           EOF
           
