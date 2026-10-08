@@ -22,7 +22,6 @@ jobs:
 
       - name: Execute Scalable Ansible Playbook
         env:
-          # Secure transmission of the multi-device host vault decryption keys
           VAULT_JSON_MAP: ${{ secrets.FIREWALL_VAULT_MAP }}
           ANSIBLE_CONFIG: ./ansible.cfg
         run: |
@@ -33,36 +32,43 @@ jobs:
           import os
           import sys
 
-          # 🚀 ENTERPRISE ARGUMENT PARSING
-          # When Ansible uses a script via vault_identity_list, it passes the Vault ID 
-          # as the first argument (sys.argv[1]). If no argument is provided, it's a default check.
-          requested_id = sys.argv[1] if len(sys.argv) > 1 else None
+          # Capture the initial raw argument input string passed by the process
+          raw_arg = sys.argv[1] if len(sys.argv) > 1 else None
+          requested_id = None
 
-          # If Ansible checks for a default/unlabeled password, exit cleanly with zero
-          if not requested_id or requested_id == 'default':
-              sys.exit(0)
+          if raw_arg:
+              # Strip down full file paths or identity symbols if passed by Ansible's sub-shell
+              base_name = os.path.basename(raw_arg)
+              if '@' in base_name:
+                  requested_id = base_name.split('@')[0]
+              else:
+                  requested_id = base_name.replace('.py', '')
 
-          # Load the secrets map securely from environment variables
+          # Pull the JSON configuration payload securely out of the environment variables
           secrets_raw = os.environ.get('VAULT_JSON_MAP', '{}')
           secrets_map = json.loads(secrets_raw)
 
-          # Fetch the exact password matching the host's Vault ID
+          # Fallback check: If the lookup is generic or blank, exit cleanly
+          if not requested_id or requested_id == 'default' or requested_id == 'vault_lookup':
+              sys.exit(0)
+
+          # Query the map using the cleaned, uniform key string
           password = secrets_map.get(requested_id)
           
           if password:
-              # Stream the password without any trailing whitespace or newlines (\n)
+              # Stream the password directly to stdout without any structural spacing or tracking tokens
               sys.stdout.write(password.strip())
               sys.stdout.flush()
               sys.exit(0)
           else:
-              sys.stderr.write(f"Error: No password found for Vault ID '{requested_id}'\n")
+              sys.stderr.write(f"Error: No key map match found for resolved target ID: '{requested_id}'\n")
               sys.exit(1)
           EOF
 
-          # 2. Make the lookup script executable by the runner
+          # 2. Assign standard execution attributes
           chmod 700 .vault_lookup.py
 
-          # 3. Execute the playbook pointing directly to your production inventory
+          # 3. Run the playbook targeting your local inventory assets
           ansible-playbook -i production_inventory.ini site.yml
 
           # 4. Immediate safe cleanup of the script file
