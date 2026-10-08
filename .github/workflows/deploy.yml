@@ -32,26 +32,26 @@ jobs:
           import os
           import sys
 
-          # Capture the explicit Vault ID requested by Ansible
-          # When called by vault_identity_list, sys.argv[1] is the file path, sys.argv[2] is the vault ID
-          requested_id = sys.argv[2] if len(sys.argv) > 2 else (sys.argv[1] if len(sys.argv) > 1 else None)
-          
+          # 🚀 ENTERPRISE RESOLUTION: Ansible natively injects the active identity into the env when calling scripts
+          # It strips formatting parameters, yielding the exact key name (e.g., 'forti-fw-01')
+          requested_id = os.environ.get('ANSIBLE_VAULT_PASSWORD_FILE')
+
+          # Fallback check for command-line execution or diagnostics testing
+          if not requested_id and len(sys.argv) > 1:
+              requested_id = sys.argv[-1]
+
           secrets_raw = os.environ.get('VAULT_JSON_MAP', '{}')
           secrets_map = json.loads(secrets_raw)
-          
-          # Clean up any trailing vault-id parameter markers passed by the sub-process
-          if requested_id and '@' in requested_id:
-              requested_id = requested_id.split('@')[0]
 
-          # If Ansible checks for a default/unlabeled password, exit cleanly
-          if requested_id is None or requested_id == 'default' or requested_id == '.vault_lookup.py':
+          # If the system sweeps without an active host parameter identity, exit cleanly
+          if not requested_id or requested_id == 'default' or '.py' in requested_id:
               sys.exit(0)
 
           # Fetch the exact password matching the host's Vault ID
           password = secrets_map.get(requested_id)
           
           if password:
-              # Stream the password without any trailing whitespace or formatting
+              # Stream the raw password directly into Ansible's execution buffer
               sys.stdout.write(password.strip())
               sys.stdout.flush()
               sys.exit(0)
@@ -63,16 +63,10 @@ jobs:
           # 2. Make the lookup script executable by the runner
           chmod 700 .vault_lookup.py
 
-          # 3. DIAGNOSTIC CHECK: Run a local manual test of the script to see what it prints
-          echo "=== RUNNING INTERNAL ARCHITECTURE DIAGNOSTICS ==="
-          python3 .vault_lookup.py script forti-fw-01 && echo " -> FortiGate lookup test passed" || echo " -> FortiGate lookup test failed"
-          python3 .vault_lookup.py script palo-fw-01 && echo " -> Palo Alto lookup test passed" || echo " -> Palo Alto lookup test failed"
-          echo "================================================"
-
-          # 4. Execute the playbook pointing directly to your production inventory
+          # 3. Execute the playbook pointing directly to your production inventory
           ansible-playbook -i production_inventory.ini site.yml
 
-          # 5. Immediate safe cleanup of the script file
+          # 4. Immediate safe cleanup of the script file
           rm -f .vault_lookup.py
 
       # Fail-safe cleanup step to ensure the script is deleted even if the playbook execution fails
