@@ -35,6 +35,11 @@ jobs:
           secrets_raw = os.getenv('VAULT_JSON_MAP', '{}')
           secrets_map = json.loads(secrets_raw)
           
+          # 🚀 FIX: If Ansible is checking for an empty default/unlabeled password, exit cleanly with zero
+          if requested_id is None or requested_id == 'default':
+              print("")
+              sys.exit(0)
+
           # Fetch the exact password matching the host's Vault ID
           password = secrets_map.get(requested_id)
           
@@ -59,4 +64,3 @@ jobs:
       - name: Pipeline Housekeeping
         if: always()
         run: rm -f .vault_lookup.py
-
