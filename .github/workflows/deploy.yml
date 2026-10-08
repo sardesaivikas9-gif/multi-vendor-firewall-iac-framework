@@ -29,22 +29,23 @@ jobs:
           import sys
 
           # Capture the explicit Vault ID requested by Ansible
-          requested_id = sys.argv[1] if len(sys.argv) > 1 else None
+          requested_id = sys.argv if len(sys.argv) > 1 else None
           
           # Load the secrets map from the environment variable securely
           secrets_raw = os.getenv('VAULT_JSON_MAP', '{}')
           secrets_map = json.loads(secrets_raw)
           
-          # 🚀 FIX: If Ansible is checking for an empty default/unlabeled password, exit cleanly with zero
+          # If Ansible checks for a default/unlabeled password, exit cleanly
           if requested_id is None or requested_id == 'default':
-              print("")
               sys.exit(0)
 
           # Fetch the exact password matching the host's Vault ID
           password = secrets_map.get(requested_id)
           
           if password:
-              print(password)
+              # 🚀 ENTERPRISE FIX: Write the password cleanly to stdout with NO trailing newline (\n)
+              sys.stdout.write(password)
+              sys.stdout.flush()
               sys.exit(0)
           else:
               sys.stderr.write(f"Error: No password found for Vault ID '{requested_id}'\n")
