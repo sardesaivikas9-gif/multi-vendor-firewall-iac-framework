@@ -1,0 +1,10 @@
+---
+# Master Multi-Vendor Network Infrastructure as Code Orchestrator
+
+- name: Import and Execute FortiGate Configurations
+  import_playbook: forti_master.yml
+  tags: [fortigate, security]
+
+- name: Import and Execute Palo Alto Configurations
+  import_playbook: palo_master.yml
+  tags: [paloalto, security]

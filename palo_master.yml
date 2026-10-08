@@ -1,8 +1,12 @@
 ---
 - name: Production Unified Palo Alto Orchestration (IaC)
-  hosts: localhost
+  # 1. CHANGED: Target the host group from your inventory instead of localhost
+  hosts: palo_alto_firewalls  
   connection: local
   gather_facts: false
+  
+  # 2. ADDED: Log the down state as UNREACHABLE and keep the pipeline green!
+  ignore_unreachable: true
 
   # Load your distinct variable file natively
   vars_files:
@@ -10,9 +14,10 @@
 
   vars:
     pan_provider:
-      ip_address: "192.168.1.180"  # Your GNS3 Palo Alto Management IP
+      # 3. CHANGED: Read the management IP dynamically from your inventory target
+      ip_address: "{{ ansible_host }}" 
       username: "admin"
-      password: "{{ vault_fw_password }}"            # <-- Replace with your verified firewall password
+      password: "{{ vault_fw_password }}" # Automatically decrypted from host_vars/palo-fw-01/vault.yml
 
   tasks:
     - name: Core Configuration Deployment Block

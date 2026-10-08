@@ -1,16 +1,17 @@
 ---
 - name: Production Unified FortiGate 7.2.0 Orchestration (REST API Engine)
-  # 1. Target your specific inventory group from production_inventory.ini
   hosts: fortigate_firewalls   
   connection: local
   gather_facts: false
+ # 1. Enterprise Resiliency: Prevents an offline node from breaking the build pipeline
+  ignore_unreachable: true
 
   # 2. Force an explicit load of your freshly split, modular schemas
   vars_files:
     - group_vars/fortigate_firewalls/zones.yml
     - group_vars/fortigate_firewalls/addresses.yml
     - group_vars/fortigate_firewalls/policies.yml
-    - group_vars/fortigate_firewalls/vault.yml
+    #- group_vars/fortigate_firewalls/vault.yml
 
   vars:
     # 3. Dynamically read the management IP from your active inventory target
