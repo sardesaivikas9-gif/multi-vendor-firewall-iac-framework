@@ -22,15 +22,36 @@ jobs:
 
       - name: Execute Scalable Ansible Playbook
         env:
-          # Injects your multi-device credential JSON payload securely
           VAULT_JSON_MAP: ${{ secrets.FIREWALL_VAULT_MAP }}
           ANSIBLE_CONFIG: ./ansible.cfg
         run: |
-          # 1. Parse the JSON map securely in-memory using python and map them to shell environment variables
-          # This keeps the secrets inside memory space and out of permanent files
+          # 1. Parse the JSON map securely in-memory and export them to shell env variables
           export FORTI_VAULT_PASS=$(python3 -c "import json, os; print(json.loads(os.getenv('VAULT_JSON_MAP', '{}')).get('forti-fw-01', ''))")
           export PALO_VAULT_PASS=$(python3 -c "import json, os; print(json.loads(os.getenv('VAULT_JSON_MAP', '{}')).get('palo-fw-01', ''))")
           
-          # 2. Execute the playbook pointing directly to your production inventory
-          # ansible.cfg will call the environment variables dynamically via echo commands
+          # 2. Generate the temporary execution client file on disk
+          cat << 'EOF' > .vault_client.sh
+          #!/bin/bash
+          # Capture the identity string argument passed directly by Ansible
+          REQUESTED_ID=$1
+          
+          if [ "$REQUESTED_ID" == "forti-fw-01" ]; then
+              printf "%s" "$FORTI_VAULT_PASS"
+          elif [ "$REQUESTED_ID" == "palo-fw-01" ]; then
+              printf "%s" "$PALO_VAULT_PASS"
+          fi
+          EOF
+          
+          # 3. Apply standard executable attributes
+          chmod 700 .vault_client.sh
+          
+          # 4. Execute the playbook pointing directly to your production inventory
           ansible-playbook -i production_inventory.ini site.yml
+          
+          # 5. Immediate safe cleanup of the script file
+          rm -f .vault_client.sh
+
+      # Fail-safe cleanup step to ensure the script is deleted even if the execution fails
+      - name: Pipeline Housekeeping
+        if: always()
+        run: rm -f .vault_client.sh
