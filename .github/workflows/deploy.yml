@@ -49,7 +49,7 @@ jobs:
           chmod 700 .vault_lookup.py
 
           # 3. Execute the playbook pointing directly to your production inventory
-          ansible-playbook -i production_inventory.ini site.yml --vault-id .vault_lookup.py
+          ansible-playbook -i production_inventory.ini site.yml
 
           # 4. Immediate safe cleanup of the script file
           rm -f .vault_lookup.py
