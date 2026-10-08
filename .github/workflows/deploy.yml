@@ -25,10 +25,34 @@ jobs:
           VAULT_JSON_MAP: ${{ secrets.FIREWALL_VAULT_MAP }}
           ANSIBLE_CONFIG: ./ansible.cfg
         run: |
-          # 1. Extract the clean secrets in-memory using python and export them as environment variables
+          # 1. Extract the clean secrets in-memory and load them into the current shell process
           export FORTI_PASS=$(python3 -c "import json, os; print(json.loads(os.getenv('VAULT_JSON_MAP', '{}')).get('forti-fw-01', '').strip())")
           export PALO_PASS=$(python3 -c "import json, os; print(json.loads(os.getenv('VAULT_JSON_MAP', '{}')).get('palo-fw-01', '').strip())")
           
-          # 2. Execute the playbook pointing directly to your production inventory
-          # The custom commands in ansible.cfg will safely stream the memory parameters
+          # 2. Generate the global vault core client script
+          cat << 'EOF' > .vault_core_client.sh
+          #!/bin/bash
+          # Ansible natively exports the active Vault ID into this env variable during execution
+          TARGET_ID=$ANSIBLE_VAULT_PASSWORD_FILE
+          
+          if [ "$TARGET_ID" == "forti-fw-01" ]; then
+              printf "%s" "$FORTI_PASS"
+          elif [ "$TARGET_ID" == "palo-fw-01" ]; then
+              printf "%s" "$PALO_PASS"
+          fi
+          EOF
+          
+          # 3. Enterprise Cross-Platform Fix: Force remove any hidden Windows carriage returns (\r)
+          sed -i 's/\r$//' .vault_core_client.sh
+          chmod 700 .vault_core_client.sh
+          
+          # 4. Execute the playbook pointing directly to your production inventory
           ansible-playbook -i production_inventory.ini site.yml
+          
+          # 5. Safe immediate cleanup
+          rm -f .vault_core_client.sh
+
+      # Fail-safe cleanup step to ensure the script is deleted even if the execution fails
+      - name: Pipeline Housekeeping
+        if: always()
+        run: rm -f .vault_core_client.sh
