@@ -1,22 +1,61 @@
----
-name: Production Firewall Deployment Pipeline
+name: Enterprise Multi-Vendor IaC Pipeline
 
-# Trigger this pipeline automatically ONLY when code is pushed to the main branch
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
 jobs:
-  execute_cd_pipeline:
-    # Tells GitHub to send this job straight down to your local laptop runner agent!
+  deploy:
+    name: Scalable Network Automation Run
     runs-on: self-hosted
 
     steps:
-      - name: 1. Checkout Repository Code
+      - name: Checkout Repository Code
         uses: actions/checkout@v4
 
-      - name: 2. Execute Automated Live REST API Deployment 🚀
+      - name: Execute Scalable Ansible Playbook
+        env:
+          # Injects your multi-device credential JSON payload securely from GitHub Secrets
+          VAULT_JSON_MAP: ${{ secrets.FIREWALL_VAULT_MAP }}
         run: |
-          # The local runner background agent triggers the real execution command natively!
-          ansible-playbook -i production_inventory.ini forti_master.yml --vault-password-file .vault_pass
+          # 1. Generate a temporary, dynamic Python lookup script on the runner
+          cat << 'EOF' > .vault_lookup.py
+          #!/usr/bin/env python3
+          import json
+          import os
+          import sys
+
+          # Capture the explicit Vault ID requested by Ansible
+          requested_id = sys.argv[1] if len(sys.argv) > 1 else None
+          
+          # Load the secrets map from the environment variable securely
+          secrets_raw = os.getenv('VAULT_JSON_MAP', '{}')
+          secrets_map = json.loads(secrets_raw)
+          
+          # Fetch the exact password matching the host's Vault ID
+          password = secrets_map.get(requested_id)
+          
+          if password:
+              print(password)
+              sys.exit(0)
+          else:
+              sys.stderr.write(f"Error: No password found for Vault ID '{requested_id}'\n")
+              sys.exit(1)
+          EOF
+
+          # 2. Make the lookup script executable by the runner
+          chmod 700 .vault_lookup.py
+
+          # 3. Execute the playbook pointing directly to your production inventory
+          ansible-playbook -i production_inventory.ini site.yml --vault-id .vault_lookup.py
+
+          # 4. Immediate safe cleanup of the script file
+          rm -f .vault_lookup.py
+
+      # Fail-safe cleanup step to ensure the script is deleted even if the playbook execution fails
+      - name: Pipeline Housekeeping
+        if: always()
+        run: rm -f .vault_lookup.py
+
