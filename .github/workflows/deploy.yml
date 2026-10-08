@@ -26,18 +26,20 @@ jobs:
           ANSIBLE_CONFIG: ./ansible.cfg
         run: |
           # 1. Parse the JSON map securely inside the script configuration layer
-          # This completely avoids sub-shell environment variables inheritance limits
           FORTI_PASS=$(python3 -c "import json, os; print(json.loads(os.getenv('VAULT_JSON_MAP', '{}')).get('forti-fw-01', ''))")
           PALO_PASS=$(python3 -c "import json, os; print(json.loads(os.getenv('VAULT_JSON_MAP', '{}')).get('palo-fw-01', ''))")
           
           # 2. Generate the temporary execution client file on disk with embedded keys
           cat << EOF > .vault_client.sh
           #!/bin/bash
-          REQUESTED_ID=\$1
+          # 🚀 ENTERPRISE ARGUMENT ROBUSTNESS
+          # Ansible evaluates scripts via positional arguments or --vault-id flags.
+          # We check the entire arguments array ($*) to see if our target substring matches.
+          ARGS="\$*"
           
-          if [ "\$REQUESTED_ID" == "forti-fw-01" ]; then
+          if [[ "\$ARGS" == *"forti-fw-01"* ]]; then
               printf "%s" "$FORTI_PASS"
-          elif [ "\$REQUESTED_ID" == "palo-fw-01" ]; then
+          elif [[ "\$ARGS" == *"palo-fw-01"* ]]; then
               printf "%s" "$PALO_PASS"
           fi
           EOF
