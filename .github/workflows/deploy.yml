@@ -15,9 +15,14 @@ jobs:
       - name: Checkout Repository Code
         uses: actions/checkout@v4
 
+      # 🚀 ENTERPRISE PATH FIX: Installs and registers python3 globally inside the runner environment path
+      - name: Set up Python Environment
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
       - name: Execute Scalable Ansible Playbook
         env:
-          # Injects your multi-device credential JSON payload securely from GitHub Secrets
           VAULT_JSON_MAP: ${{ secrets.FIREWALL_VAULT_MAP }}
           ANSIBLE_CONFIG: ./ansible.cfg
         run: |
@@ -28,22 +33,17 @@ jobs:
           import os
           import sys
 
-          # Capture the explicit Vault ID requested by Ansible
           requested_id = sys.argv if len(sys.argv) > 1 else None
           
-          # 🚀 ENTERPRISE FIX: Read the raw JSON secret directly from memory environment variables
           secrets_raw = os.environ.get('VAULT_JSON_MAP', '{}')
           secrets_map = json.loads(secrets_raw)
           
-          # If Ansible checks for a default/unlabeled password, exit cleanly
           if requested_id is None or requested_id == 'default':
               sys.exit(0)
 
-          # Fetch the exact password matching the host's Vault ID
           password = secrets_map.get(requested_id)
           
           if password:
-              # Write the password cleanly to stdout with NO trailing newline (\n)
               sys.stdout.write(password)
               sys.stdout.flush()
               sys.exit(0)
@@ -61,7 +61,6 @@ jobs:
           # 4. Immediate safe cleanup of the script file
           rm -f .vault_lookup.py
 
-      # Fail-safe cleanup step to ensure the script is deleted even if the playbook execution fails
       - name: Pipeline Housekeeping
         if: always()
         run: rm -f .vault_lookup.py
