@@ -19,6 +19,7 @@ jobs:
         env:
           # Injects your multi-device credential JSON payload securely from GitHub Secrets
           VAULT_JSON_MAP: ${{ secrets.FIREWALL_VAULT_MAP }}
+          ANSIBLE_CONFIG: ./ansible.cfg
         run: |
           # 1. Generate a temporary, dynamic Python lookup script on the runner
           cat << 'EOF' > .vault_lookup.py
