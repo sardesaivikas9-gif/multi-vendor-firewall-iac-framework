@@ -1,10 +1,22 @@
 ---
 # Master Multi-Vendor Network Infrastructure as Code Orchestrator
 
+# - name: Import and Execute FortiGate Configurations
+#   import_playbook: forti_master.yml
+#   tags: [fortigate, security]
+
+# - name: Import and Execute Palo Alto Configurations
+#   import_playbook: palo_master.yml
+#   tags: [paloalto, security]
+
+# Master Multi-Vendor Network Infrastructure as Code Orchestrator
+
 - name: Import and Execute FortiGate Configurations
   import_playbook: forti_master.yml
-  tags: [fortigate, security]
+  # 🚀 PROD GATEWAY: Only invokes the playbook if the targeted host status is explicitly active
+  when: hostvars[groups['fortigate_firewalls'][0]]['status'] == 'active'
 
 - name: Import and Execute Palo Alto Configurations
   import_playbook: palo_master.yml
-  tags: [paloalto, security]
+  # 🚀 PROD GATEWAY: Only invokes the playbook if the targeted host status is explicitly active
+  when: hostvars[groups['palo_alto_firewalls'][0]]['status'] == 'active'
