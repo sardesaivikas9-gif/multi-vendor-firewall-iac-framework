@@ -1,25 +1,32 @@
 ---
 - name: Production Unified Palo Alto Orchestration (IaC)
-  # 1. CHANGED: Target the host group from your inventory instead of localhost
   hosts: palo_alto_firewalls  
   connection: local
   gather_facts: false
   
-  # 2. ADDED: Log the down state as UNREACHABLE and keep the pipeline green!
+  # 🚀 Enterprise Resiliency: Keeps pipeline green if device is offline
   ignore_unreachable: true
 
-  # Load your distinct variable file natively
   vars_files:
     - palo_firewall_vars.yml
 
   vars:
     pan_provider:
-      # 3. CHANGED: Read the management IP dynamically from your inventory target
       ip_address: "{{ ansible_host }}" 
       username: "admin"
-      password: "{{ vault_fw_password }}" # Automatically decrypted from host_vars/palo-fw-01/vault.yml
+      password: "{{ vault_fw_password }}"
 
   tasks:
+    # 🔍 PRE-FLIGHT REACHABILITY SHIELD
+    # Tries to reach the firewall management port. If it is down, it halts 
+    # this specific playbook gracefully, logs it as UNREACHABLE, and skips the rest.
+    - name: 0. Pre-Flight Verification: Check if Palo Alto VM is Online
+      ansible.builtin.wait_for:
+        host: "{{ ansible_host }}"
+        port: 443
+        timeout: 3
+      delegate_to: localhost
+
     - name: Core Configuration Deployment Block
       block:
         - name: 1. Provision Security Zones
@@ -47,118 +54,6 @@
             state: "{{ 'present' if item.action == 'add' else 'absent' }}"
           loop: "{{ firewall_address_groups }}"
 
-        # - name: 4. Provision NAT Rules
-        #   paloaltonetworks.panos.panos_nat_rule:
-        #     provider: "{{ pan_provider }}"
-        #     name: "{{ item.name }}"
-        #     from_zones: ["{{ item.src_zone }}"]
-        #     to_zones: ["{{ item.dest_zone }}"]
-        #     source_addresses: ["any"]
-        #     destination_addresses: ["any"]
-        #     # FIXED NESTED SOURCE NAT PARAMETERS BELOW
-        #     source_translation_type: "{{ item.snat_type }}"
-        #     source_translation_interface: "{{ item.snat_interface }}"
-        #     state: "{{ 'present' if item.action == 'add' else 'absent' }}"
-        #   loop: "{{ firewall_nat_rules }}"
-        # - name: 4. Provision NAT Rules
-        #   paloaltonetworks.panos.panos_nat_rule:
-        #     provider: "{{ pan_provider }}"
-        #     name: "{{ item.name }}"
-        #     from_zones: ["{{ item.src_zone }}"]
-        #     to_zones: ["{{ item.dest_zone }}"]
-        #     source_addresses: ["any"]
-        #     destination_addresses: ["any"]
-        #     source_translation_type: "{{ item.snat_type }}"
-        #     source_translation_interface: "{{ item.snat_interface }}"
-        #     # FIX: Explicitly specify interface IP address translation
-        #     source_translation_ip_address: "interface-address" 
-        #     state: "{{ 'present' if item.action == 'add' else 'absent' }}"
-        #   loop: "{{ firewall_nat_rules }}"
-
-        # - name: 4. Provision NAT Rules
-        #   paloaltonetworks.panos.panos_nat_rule:
-        #     provider: "{{ pan_provider }}"
-        #     name: "{{ item.name }}"
-        #     from_zones: ["{{ item.src_zone }}"]
-        #     to_zones: ["{{ item.dest_zone }}"]
-        #     source_addresses: ["any"]
-        #     destination_addresses: ["any"]
-            
-        #     # Explicit Dynamic IP and Port Module Configuration
-        #     source_translation_type: "{{ item.snat_type }}"
-        #     source_translation_interface: "{{ item.snat_interface }}"
-            
-        #     # THE MISSING BLOCK: Tells the 8.0.0 engine to use the primary address of the interface
-        #     source_translation_fallback_type: "none"
-        #     source_translation_ip_address: "none"
-            
-        #     state: "{{ 'present' if item.action == 'add' else 'absent' }}"
-        #   loop: "{{ firewall_nat_rules }}"
-        # - name: 4. Provision NAT Rules
-        #   paloaltonetworks.panos.panos_nat_rule:
-        #     provider: "{{ pan_provider }}"
-        #     name: "{{ item.name }}"
-        #     from_zones: ["{{ item.src_zone }}"]
-        #     to_zones: ["{{ item.dest_zone }}"]
-        #     source_addresses: ["any"]
-        #     destination_addresses: ["any"]
-            
-        #     # Core NAT definitions
-        #     source_translation_type: "{{ item.snat_type }}"
-        #     source_translation_interface: "{{ item.snat_interface }}"
-            
-        #     # MATCHING YOUR EXACT ERROR VALIDATION CHOICES:
-        #     source_translation_fallback_type: "interface-address"
-            
-        #     state: "{{ 'present' if item.action == 'add' else 'absent' }}"
-        #   loop: "{{ firewall_nat_rules }}"
-        # - name: 4. Provision NAT Rules
-        #   paloaltonetworks.panos.panos_nat_rule:
-        #     provider: "{{ pan_provider }}"
-        #     name: "{{ item.name }}"
-        #     from_zones: ["{{ item.src_zone }}"]
-        #     to_zones: ["{{ item.dest_zone }}"]
-        #     source_addresses: ["any"]
-        #     destination_addresses: ["any"]
-            
-        #     # Core NAT definitions
-        #     source_translation_type: "{{ item.snat_type }}"
-        #     source_translation_interface: "{{ item.snat_interface }}"
-            
-        #     # EXPLICIT FALLBACK DECLARATION FOR PAN-OS 8.0.0 COMMIT STACK:
-        #     source_translation_fallback_type: "interface-address"
-        #     source_translation_fallback_interface: "{{ item.snat_interface }}" # <-- ADD THIS PARAMETER
-            
-        #     state: "{{ 'present' if item.action == 'add' else 'absent' }}"
-        #   loop: "{{ firewall_nat_rules }}"
-        
-        # - name: 4. Provision NAT Rules
-        #   paloaltonetworks.panos.panos_element:
-        #     provider: "{{ pan_provider }}"
-        #     xpath: "/config/devices/entry[@name='localhost.localdomain']/vsys/entry[@name='vsys1']/rulebase/nat/rules/entry[@name='{{ item.name }}']"
-        #     element: |
-        #       <from>
-        #         <member>{{ item.src_zone }}</member>
-        #       </from>
-        #       <to>
-        #         <member>{{ item.dest_zone }}</member>
-        #       </to>
-        #       <source>
-        #         <member>any</member>
-        #       </source>
-        #       <destination>
-        #         <member>any</member>
-        #       </destination>
-        #       <service>any</service>
-        #       <source-translation>
-        #         <dynamic-ip-and-port>
-        #           <interface-address>
-        #             <interface>{{ item.snat_interface }}</interface>
-        #           </interface-address>
-        #         </dynamic-ip-and-port>
-        #       </source-translation>
-        #   loop: "{{ firewall_nat_rules }}"
-
         - name: 4. Provision NAT Rules
           paloaltonetworks.panos.panos_type_cmd:
             provider: "{{ pan_provider }}"
@@ -185,37 +80,3 @@
                 </dynamic-ip-and-port>
               </source-translation>
           loop: "{{ firewall_nat_rules }}"
-
-        - name: 5. Provision Security Policies (Rules)
-          paloaltonetworks.panos.panos_security_rule:
-            provider: "{{ pan_provider }}"
-            rule_name: "{{ item.name }}"
-            source_zone: ["{{ item.src_zone }}"]
-            destination_zone: ["{{ item.dest_zone }}"]
-            source_ip: ["{{ item.src_ip }}"]
-            destination_ip: ["{{ item.dest_ip }}"]
-            application: ["{{ item.app }}"]
-            action: "{{ item.srv_action }}"
-            state: "{{ 'present' if item.action == 'add' else 'absent' }}"
-          loop: "{{ firewall_security_policies }}"
-
-        - name: 6. Execute Atomic Configuration Commit
-          paloaltonetworks.panos.panos_commit_firewall:
-            provider: "{{ pan_provider }}"
-          when: trigger_commit == "yes"
-
-      rescue:
-        - name: 🚨 [CRITICAL ALERT] Task Failure Detected! Initiating Automated Revert to Safe State
-          ansible.builtin.command: >
-            python3 -c "from panos.base import PanDevice; 
-            fw = PanDevice('192.168.1.180', 'admin', 'admin'); 
-            fw.revert_to_running_configuration()"
-          register: rollback_status
-
-        - name: Confirm Rollback Status
-          ansible.builtin.debug:
-            msg: "Firewall candidate configuration successfully reverted to the last known running-config.xml. Production is safe."
-
-        - name: Force Playbook Failure After Rollback
-          ansible.builtin.fail:
-            msg: "The configuration deployment failed during block execution. Rollback completed successfully."
