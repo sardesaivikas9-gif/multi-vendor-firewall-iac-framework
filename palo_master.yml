@@ -1,5 +1,5 @@
 ---
-- name: Production Unified Palo Alto Orchestration (IaC)
+- name: "Production Unified Palo Alto Orchestration (IaC)"
   hosts: palo_alto_firewalls  
   connection: local
   gather_facts: false
@@ -18,18 +18,17 @@
 
   tasks:
     # 🔍 PRE-FLIGHT REACHABILITY SHIELD
-    # Tries to reach the firewall management port. If it is down, it halts 
-    # this specific playbook gracefully, logs it as UNREACHABLE, and skips the rest.
-    - name: 0. Pre-Flight Verification: Check if Palo Alto VM is Online
+    # FIX: Wrapped in double quotes to prevent unquoted colon YAML parsing errors
+    - name: "0. Pre-Flight Verification: Check if Palo Alto VM is Online"
       ansible.builtin.wait_for:
         host: "{{ ansible_host }}"
         port: 443
         timeout: 3
       delegate_to: localhost
 
-    - name: Core Configuration Deployment Block
+    - name: "Core Configuration Deployment Block"
       block:
-        - name: 1. Provision Security Zones
+        - name: "1. Provision Security Zones"
           paloaltonetworks.panos.panos_zone:
             provider: "{{ pan_provider }}"
             zone: "{{ item.name }}"
@@ -37,7 +36,7 @@
             state: "{{ 'present' if item.action == 'add' else 'absent' }}"
           loop: "{{ firewall_zones }}"
 
-        - name: 2. Provision Address Objects
+        - name: "2. Provision Address Objects"
           paloaltonetworks.panos.panos_address_object:
             provider: "{{ pan_provider }}"
             name: "{{ item.name }}"
@@ -46,7 +45,7 @@
             state: "{{ 'present' if item.action == 'add' else 'absent' }}"
           loop: "{{ firewall_addresses }}"
 
-        - name: 3. Provision Address Groups
+        - name: "3. Provision Address Groups"
           paloaltonetworks.panos.panos_address_group:
             provider: "{{ pan_provider }}"
             name: "{{ item.name }}"
@@ -54,7 +53,7 @@
             state: "{{ 'present' if item.action == 'add' else 'absent' }}"
           loop: "{{ firewall_address_groups }}"
 
-        - name: 4. Provision NAT Rules
+        - name: "4. Provision NAT Rules"
           paloaltonetworks.panos.panos_type_cmd:
             provider: "{{ pan_provider }}"
             xpath: "/config/devices/entry[@name='localhost.localdomain']/vsys/entry[@name='vsys1']/rulebase/nat/rules/entry[@name='{{ item.name }}']"
