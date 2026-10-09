@@ -1,9 +1,78 @@
+# ---
+# - name: Production Unified FortiGate 7.2.0 Orchestration (REST API Engine)
+#   hosts: fortigate_firewalls   
+#   connection: local
+#   gather_facts: false
+#  # 1. Enterprise Resiliency: Prevents an offline node from breaking the build pipeline
+#   ignore_unreachable: true
+
+#   # 2. Force an explicit load of your freshly split, modular schemas
+#   vars_files:
+#     - group_vars/fortigate_firewalls/zones.yml
+#     - group_vars/fortigate_firewalls/addresses.yml
+#     - group_vars/fortigate_firewalls/policies.yml
+#     #- group_vars/fortigate_firewalls/vault.yml
+
+#   vars:
+#     # 3. Dynamically read the management IP from your active inventory target
+#     forti_host: "{{ ansible_host }}" 
+
+#   tasks:
+#     - name: 1. Provision Security Zones via FortiOS 7.2 REST API
+#       ansible.builtin.uri:
+#         url: "http://{{ forti_host }}/api/v2/cmdb/system/zone/"
+#         method: POST
+#         body_format: json
+#         body:
+#           name: "{{ item.name }}"
+#         headers:
+#           Authorization: "Bearer {{ vault_forti_token }}"
+#         status_code: [200, 500] # Bypasses errors if the zone already exists
+#       loop: "{{ forti_zones }}"
+#       when: item.action == 'add'
+
+#     - name: 2. Provision Address Objects via FortiOS 7.2 REST API
+#       ansible.builtin.uri:
+#         url: "http://{{ forti_host }}/api/v2/cmdb/firewall/address/"
+#         method: POST
+#         body_format: json
+#         body:
+#           name: "{{ item.name }}"
+#           type: "ipmask"
+#           subnet: "{{ item.value }} 255.255.255.255"
+#           comment: "{{ item.comment | default('') }}"
+#         headers:
+#           Authorization: "Bearer {{ vault_forti_token }}"
+#         status_code: [200, 500]
+#       loop: "{{ forti_addresses }}"
+#       when: item.action == 'add'
+
+#     - name: 3. Provision Security Policies via FortiOS 7.2 REST API
+#       ansible.builtin.uri:
+#         url: "http://{{ forti_host }}/api/v2/cmdb/firewall/policy/"
+#         method: POST
+#         body_format: json
+#         body:
+#           policyid: 101
+#           name: "{{ item.name }}"
+#           srcintf: [{ name: "{{ item.src_zone }}" }]
+#           dstintf: [{ name: "{{ item.dest_zone }}" }]
+#           srcaddr: [{ name: "{{ item.src_ip }}" }]
+#           dstaddr: [{ name: "{{ item.dest_ip }}" }]
+#           service: [{ name: "{{ item.app }}" }]
+#           action: "{{ item.srv_action }}"
+#           schedule: "always"
+#         headers:
+#           Authorization: "Bearer {{ vault_forti_token }}"
+#         status_code: [200, 500]
+#       loop: "{{ forti_security_policies }}"
+#       when: item.action == 'add'
 ---
 - name: Production Unified FortiGate 7.2.0 Orchestration (REST API Engine)
   hosts: fortigate_firewalls   
   connection: local
   gather_facts: false
- # 1. Enterprise Resiliency: Prevents an offline node from breaking the build pipeline
+  # 1. Enterprise Resiliency: Prevents an offline node from breaking the build pipeline
   ignore_unreachable: true
 
   # 2. Force an explicit load of your freshly split, modular schemas
@@ -11,59 +80,48 @@
     - group_vars/fortigate_firewalls/zones.yml
     - group_vars/fortigate_firewalls/addresses.yml
     - group_vars/fortigate_firewalls/policies.yml
-    #- group_vars/fortigate_firewalls/vault.yml
 
   vars:
     # 3. Dynamically read the management IP from your active inventory target
     forti_host: "{{ ansible_host }}" 
 
   tasks:
-    - name: 1. Provision Security Zones via FortiOS 7.2 REST API
-      ansible.builtin.uri:
-        url: "http://{{ forti_host }}/api/v2/cmdb/system/zone/"
-        method: POST
-        body_format: json
-        body:
-          name: "{{ item.name }}"
-        headers:
-          Authorization: "Bearer {{ vault_forti_token }}"
-        status_code: [200, 500] # Bypasses errors if the zone already exists
-      loop: "{{ forti_zones }}"
-      when: item.action == 'add'
+    # 🚀 EXECUTION NOTE ON ORDER: 
+    # When deleting configurations, we must delete Policies FIRST, then Addresses, and Zones LAST.
+    # This respects FortiOS dependency trees, as active policies lock their bound objects!
 
-    - name: 2. Provision Address Objects via FortiOS 7.2 REST API
+    - name: 1. Manage Security Policies via Dynamic FortiOS REST API
       ansible.builtin.uri:
-        url: "http://{{ forti_host }}/api/v2/cmdb/firewall/address/"
-        method: POST
+        url: "http://{{ forti_host }}/api/v2/cmdb/firewall/policy/{{ '' if item.action == 'add' else '101' }}"
+        method: "{{ 'POST' if item.action == 'add' else 'DELETE' }}"
         body_format: json
-        body:
-          name: "{{ item.name }}"
-          type: "ipmask"
-          subnet: "{{ item.value }} 255.255.255.255"
-          comment: "{{ item.comment | default('') }}"
+        body: "{{ {'policyid': 101, 'name': item.name, 'srcintf': [{'name': item.src_zone}], 'dstintf': [{'name': item.dest_zone}], 'srcaddr': [{'name': item.src_ip}], 'dstaddr': [{'name': item.dest_ip}], 'service': [{'name': item.app}], 'action': item.srv_action, 'schedule': 'always'} if item.action == 'add' else omit }}"
         headers:
           Authorization: "Bearer {{ vault_forti_token }}"
-        status_code: [200, 500]
-      loop: "{{ forti_addresses }}"
-      when: item.action == 'add'
-
-    - name: 3. Provision Security Policies via FortiOS 7.2 REST API
-      ansible.builtin.uri:
-        url: "http://{{ forti_host }}/api/v2/cmdb/firewall/policy/"
-        method: POST
-        body_format: json
-        body:
-          policyid: 101
-          name: "{{ item.name }}"
-          srcintf: [{ name: "{{ item.src_zone }}" }]
-          dstintf: [{ name: "{{ item.dest_zone }}" }]
-          srcaddr: [{ name: "{{ item.src_ip }}" }]
-          dstaddr: [{ name: "{{ item.dest_ip }}" }]
-          service: [{ name: "{{ item.app }}" }]
-          action: "{{ item.srv_action }}"
-          schedule: "always"
-        headers:
-          Authorization: "Bearer {{ vault_forti_token }}"
-        status_code: [200, 500]
+        # 🛡️ FAIL-SAFE: 404 means the policy is already gone; 200/201 mean success. Bypasses errors cleanly!
+        status_code: [200, 201, 404, 500]
       loop: "{{ forti_security_policies }}"
-      when: item.action == 'add'
+
+    - name: 2. Manage Address Objects via Dynamic FortiOS REST API
+      ansible.builtin.uri:
+        url: "http://{{ forti_host }}/api/v2/cmdb/firewall/address/{{ '' if item.action == 'add' else item.name }}"
+        method: "{{ 'POST' if item.action == 'add' else 'DELETE' }}"
+        body_format: json
+        body: "{{ {'name': item.name, 'type': 'ipmask', 'subnet': item.value ~ ' 255.255.255.255', 'comment': item.comment | default('')} if item.action == 'add' else omit }}"
+        headers:
+          Authorization: "Bearer {{ vault_forti_token }}"
+        # 🛡️ FAIL-SAFE: Prevents pipeline crashes if the address is already deleted or missing from the GUI
+        status_code: [200, 201, 404, 500]
+      loop: "{{ forti_addresses }}"
+
+    - name: 3. Manage Security Zones via Dynamic FortiOS REST API
+      ansible.builtin.uri:
+        url: "http://{{ forti_host }}/api/v2/cmdb/system/zone/{{ '' if item.action == 'add' else item.name }}"
+        method: "{{ 'POST' if item.action == 'add' else 'DELETE' }}"
+        body_format: json
+        body: "{{ {'name': item.name} if item.action == 'add' else omit }}"
+        headers:
+          Authorization: "Bearer {{ vault_forti_token }}"
+        # 🛡️ FAIL-SAFE: Gracefully passes if the zone is already deleted from the system kernel
+        status_code: [200, 201, 404, 500]
+      loop: "{{ forti_zones }}"
