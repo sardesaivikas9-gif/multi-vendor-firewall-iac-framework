@@ -3,3 +3,4 @@ forti_zones:
   - { name: "Forti_Inside_Zone", action: "add" }
   - { name: "Forti_DMZ_Zone", action: "add" }
   - { name: "test_zone", action: "add" }
+  - { name: "zone to test CI CD", action: "add" }
