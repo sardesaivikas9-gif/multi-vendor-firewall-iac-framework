@@ -95,14 +95,20 @@
             provider: "{{ pan_provider }}"
           when: trigger_commit is defined and trigger_commit == "yes"
 
-      # 🚨 AUTOMATED ROLLBACK LAYER: If ANY configuration task inside the core block fails mid-way,
-      # this rescue block triggers instantly, wipes the staged candidate buffer, and returns the firewall to status quo.
+      # 🚨 AUTOMATED ROLLBACK LAYER: Safely purges staged structural address and zone components inside vsys1
       rescue:
-        - name: "🚨 CRITICAL FAILURE DETECTED: Executing Automated Palo Alto Candidate Buffer Rollback"
+        - name: "🚨 CRITICAL FAILURE DETECTED: Wiping Staged Candidate Address Buffer"
           paloaltonetworks.panos.panos_type_cmd:
             provider: "{{ pan_provider }}"
             cmd: "delete"
-            xpath: "/config/devices/entry[@name='localhost.localdomain']/vsys/entry[@name='vsys1']"
+            xpath: "/config/devices/entry[@name='localhost.localdomain']/vsys/entry[@name='vsys1']/address"
+          ignore_errors: true
+
+        - name: "🚨 CRITICAL FAILURE DETECTED: Wiping Staged Candidate Zone Buffer"
+          paloaltonetworks.panos.panos_type_cmd:
+            provider: "{{ pan_provider }}"
+            cmd: "delete"
+            xpath: "/config/devices/entry[@name='localhost.localdomain']/vsys/entry[@name='vsys1']/zone"
           ignore_errors: true
 
         - name: "Force Pipeline Failure Notification"
