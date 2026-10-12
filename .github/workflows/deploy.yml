@@ -53,10 +53,18 @@ jobs:
           sed -i 's/\r$//' .vault_core_client.sh
           chmod 700 .vault_core_client.sh
           
-          # 4. Execute the playbook pointing directly to your production inventory
-          ansible-playbook -i production_inventory.ini site.yml
+          # 4. 🚀 DYNAMIC COMMIT INJECTION GATEWAY
+          # Natively checks the active Git branch execution profile. 
+          # Enforces an absolute write-commit ONLY on the primary production branch channel.
+          COMMIT_FLAG="no"
+          if [ "${{ github.ref_name }}" == "main" ]; then
+              COMMIT_FLAG="yes"
+          fi
           
-          # 5. Safe immediate cleanup
+          # 5. Execute the playbook pointing directly to your production inventory with extra runtime arguments
+          ansible-playbook -i production_inventory.ini site.yml --extra-vars "env_trigger_commit=$COMMIT_FLAG"
+          
+          # 6. Safe immediate cleanup
           rm -f .vault_core_client.sh
 
       # Fail-safe cleanup step to ensure the script is deleted even if the execution fails

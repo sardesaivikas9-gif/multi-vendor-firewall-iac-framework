@@ -1,0 +1,6 @@
+---
+firewall_addresses:
+  - { name: "Palo_Web_Host", value: "10.200.10.20", description: "Production Web Host Server", action: "add" }
+
+firewall_address_groups: []
+firewall_nat_rules: []

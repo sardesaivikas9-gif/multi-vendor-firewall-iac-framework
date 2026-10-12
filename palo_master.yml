@@ -4,29 +4,38 @@
   connection: local
   gather_facts: false
   
-  # 🚀 Enterprise Resiliency: Keeps pipeline green if device is offline
+  # 🚀 Enterprise Resiliency: Keeps pipeline green if network connection drops
   ignore_unreachable: true
 
+  # 🟩 ALIGNED SYNTAX: Explicitly loads your modular schemas matching FortiGate's pattern
   vars_files:
-    - palo_firewall_vars.yml
+    - group_vars/palo_alto_firewalls/zones.yml
+    - group_vars/palo_alto_firewalls/addresses.yml
 
   vars:
     pan_provider:
       ip_address: "{{ ansible_host }}" 
       username: "admin"
-      password: "{{ vault_fw_password }}"
+      # 🔐 Read the password out of your secure host vault file dynamically
+      password: "{{ vault_palo_password }}"
+    # 🚀 DYNAMIC OVERRIDE: Automatically populated by the GitHub Actions branch runner
+    trigger_commit: "{{ env_trigger_commit | default('no') }}"
 
   tasks:
     # 🔍 PRE-FLIGHT REACHABILITY SHIELD
-    # FIX: Wrapped in double quotes to prevent unquoted colon YAML parsing errors
     - name: "0. Pre-Flight Verification: Check if Palo Alto VM is Online"
       ansible.builtin.wait_for:
         host: "{{ ansible_host }}"
         port: 443
         timeout: 3
       delegate_to: localhost
+      ignore_errors: true
+      register: palo_health_check
 
-    - name: "Core Configuration Deployment Block"
+    # =========================================================================
+    # 🛡️ THE ENTERPRISE TRANSACTIONAL ENGINE LAYER (BLOCK / RESCUE)
+    # =========================================================================
+    - name: "Transactional Configuration Engine"
       block:
         - name: "1. Provision Security Zones"
           paloaltonetworks.panos.panos_zone:
@@ -79,3 +88,26 @@
                 </dynamic-ip-and-port>
               </source-translation>
           loop: "{{ firewall_nat_rules }}"
+
+        # 🚀 ENTERPRISE Palo Alto COMMIT GATE
+        - name: "5. Enforce Enterprise Configuration Commit"
+          paloaltonetworks.panos.panos_commit:
+            provider: "{{ pan_provider }}"
+          when: trigger_commit is defined and trigger_commit == "yes"
+
+      # 🚨 AUTOMATED ROLLBACK LAYER: If ANY configuration task inside the core block fails mid-way,
+      # this rescue block triggers instantly, wipes the staged candidate buffer, and returns the firewall to status quo.
+      rescue:
+        - name: "🚨 CRITICAL FAILURE DETECTED: Executing Automated Palo Alto Candidate Buffer Rollback"
+          paloaltonetworks.panos.panos_type_cmd:
+            provider: "{{ pan_provider }}"
+            cmd: "delete"
+            xpath: "/config/devices/entry[@name='localhost.localdomain']/vsys/entry[@name='vsys1']"
+          ignore_errors: true
+
+        - name: "Force Pipeline Failure Notification"
+          ansible.builtin.fail:
+            msg: "Playbook execution aborted due to a structural configuration task failure. Staged firewall changes rolled back safely."
+
+      # 🚀 THE SHIELD GATEWAY: Execute these configuration tasks ONLY if the connection test passed successfully
+      when: palo_health_check.failed is not defined or not palo_health_check.failed

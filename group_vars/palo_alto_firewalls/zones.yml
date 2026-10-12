@@ -1,0 +1,4 @@
+---
+firewall_zones:
+  - { name: "Prod_Inside_Zone", mode: "layer3", action: "add" }
+  - { name: "Prod_DMZ_Zone", mode: "layer3", action: "add" }
