@@ -1,4 +1,5 @@
 ---
 firewall_zones:
-  - { name: "Prod_Inside_Zone", mode: "layer3", action: "delete" }
+  - { name: "Prod_Inside_Zone", mode: "layer3", action: "add" }
   - { name: "Prod_DMZ_Zone", mode: "layer3", action: "add" }
+  - { name: "test_zone_for_deletion", mode: "layer3", action: "add" }

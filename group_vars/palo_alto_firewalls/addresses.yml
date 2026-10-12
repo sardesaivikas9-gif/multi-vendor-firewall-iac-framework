@@ -1,6 +1,7 @@
 ---
 # Palo Alto Individual Object Blueprints
 firewall_addresses:
-  - { name: "Palo_Web_Host", value: "10.200.10.20", description: "Production Web Host Server", action: "delete" }
+  - { name: "Palo_Web_Host", value: "10.200.10.20", description: "Production Web Host Server", action: "add" }
   - { name: "Palo_DB_Host", value: "10.200.10.30", description: "Production Database Server", action: "add" }
   - { name: "Palo_Backup_Host", value: "10.110.50.99", description: "Offsite Backup Storage Target", action: "add" }
+  - { name: "address_for_deletion", value: "10.111.51.99", description: "test_for deletion", action: "add" }
