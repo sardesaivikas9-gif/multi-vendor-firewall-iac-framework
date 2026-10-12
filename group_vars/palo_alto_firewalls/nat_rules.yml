@@ -1,0 +1,4 @@
+---
+# Palo Alto Source and Destination NAT Rule blueprints
+firewall_nat_rules:
+  - { name: "Outbound_Internet_NAT", src_zone: "Prod_Inside_Zone", dest_zone: "Prod_DMZ_Zone", snat_type: "dynamic-ip-and-port", snat_interface: "ethernet1/1", action: "add" }

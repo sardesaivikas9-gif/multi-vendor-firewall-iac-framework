@@ -1,6 +1,6 @@
 ---
+# Palo Alto Individual Object Blueprints
 firewall_addresses:
   - { name: "Palo_Web_Host", value: "10.200.10.20", description: "Production Web Host Server", action: "add" }
-
-firewall_address_groups: []
-firewall_nat_rules: []
+  - { name: "Palo_DB_Host", value: "10.200.10.30", description: "Production Database Server", action: "add" }
+  - { name: "Palo_Backup_Host", value: "10.300.50.99", description: "Offsite Backup Storage Target", action: "add" }
