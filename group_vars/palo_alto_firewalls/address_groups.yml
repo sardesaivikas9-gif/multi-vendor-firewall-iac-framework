@@ -1,5 +1,5 @@
 ---
 # Palo Alto Aggregated Address Groups
 firewall_address_groups:
-  - { name: "Prod_Application_Cluster", members: ["Palo_Web_Host", "Palo_DB_Host"], action: "add" }
+  - { name: "Prod_Application_Cluster", members: ["Palo_Web_Host", "Palo_DB_Host"], action: "delete" }
   - { name: "Storage_Infrastructure_Group", members: ["Palo_Backup_Host"], action: "add" }
