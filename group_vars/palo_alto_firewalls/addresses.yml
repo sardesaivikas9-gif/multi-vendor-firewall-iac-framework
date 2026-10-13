@@ -5,5 +5,3 @@ firewall_addresses:
   - { name: "Palo_DB_Host", value: "10.200.10.30", description: "Production Database Server", action: "add" }
   - { name: "Palo_Backup_Host", value: "10.110.50.99", description: "Offsite Backup Storage Target", action: "add" }
   - { name: "address_for_deletion", value: "10.111.51.99", description: "test_for deletion", action: "delete" }
-  - { name: "Rollback_Test_Host_A", value: "10.50.50.11", description: "Valid Rollback Test Alpha", action: "add" }
-  - { name: "Rollback_Test_Host_B", value: "10.50.50.22", description: "Valid Rollback Test Beta", action: "add" }

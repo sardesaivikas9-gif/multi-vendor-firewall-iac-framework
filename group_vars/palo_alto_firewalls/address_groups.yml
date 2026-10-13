@@ -3,4 +3,3 @@
 firewall_address_groups:
   - { name: "Prod_Application_Cluster", members: ["Palo_Web_Host", "Palo_DB_Host"], action: "add" }
   - { name: "Storage_Infrastructure_Group", members: ["Palo_Backup_Host"], action: "add" }
-  - { name: "Broken_Rollback_Cluster", members: ["Rollback_Test_Host_A", "NON_EXISTENT_GHOST_HOST"], action: "add" }
